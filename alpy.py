@@ -165,8 +165,8 @@ def main():
             recent_data['Tahmin'] = model.predict(recent_data[features])
             
             fig = go.Figure()
-            fig.add_trace(go.Scatter(x=recent_data['GAME_DATE'], y=recent_data['PTS'], mode='lines+markers', name='Gerçek', line=dict(color='#FF4B4B')))
-            fig.add_trace(go.Scatter(x=recent_data['GAME_DATE'], y=recent_data['Tahmin'], mode='lines+markers', name='Model Tahmini', line=dict(color='#1F77B4', dash='dot')))
+            fig.add_trace(go.Scatter(x=recent_data['GAME_DATE'], y=recent_data['PTS'], mode='lines+markers', name='True', line=dict(color='#FF4B4B')))
+            fig.add_trace(go.Scatter(x=recent_data['GAME_DATE'], y=recent_data['Tahmin'], mode='lines+markers', name='Prediction', line=dict(color='#1F77B4', dash='dot')))
             
             fig.update_layout(height=350, margin=dict(l=20, r=20, t=30, b=20))
             st.plotly_chart(fig, use_container_width=True)
