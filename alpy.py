@@ -13,7 +13,7 @@ import plotly.graph_objects as go
 
 # Sayfa Ayarları
 st.set_page_config(
-    page_title="Alperen Şengün AI Tahmincisi",
+    page_title="Alperen Sengun AI Predictor",
     page_icon="🏀",
     layout="wide"
 )
@@ -86,8 +86,8 @@ def train_model(df_ml):
 
 # --- 3. ANA UYGULAMA ---
 def main():
-    st.title("🏀 Alperen Şengün: AI Performans Tahmincisi")
-    st.markdown("Bu dashboard, makine öğrenmesi kullanarak Alperen'in bir sonraki maçtaki sayı performansını tahmin eder.")
+    st.title("🏀 Alperen Sengun: AI Performance Predicts")
+    st.markdown("This dashboard, predicts Alperen's next game stats with using machine learning techniques..")
 
     raw_df, df_ml, defense_map = load_and_prep_data()
     
@@ -95,14 +95,14 @@ def main():
         model, features, std_dev = train_model(df_ml)
 
         # Yan Menü (Sidebar) - Simülasyon
-        st.sidebar.header("🛠️ Tahmin Simülatörü")
-        st.sidebar.markdown("Koşulları değiştir, tahmini gör.")
+        st.sidebar.header("🛠️ Prediction Simulator")
+        st.sidebar.markdown("Change the conditions, see the predictions.")
         
         # Seçimler
         teams = sorted(defense_map.keys())
-        selected_opp = st.sidebar.selectbox("Rakip Takım", options=teams, index=teams.index('BKN'))
-        is_home = st.sidebar.radio("Saha", ["Deplasman", "Ev Sahibi"])
-        rest_days = st.sidebar.slider("Dinlenme Süresi (Gün)", 0, 10, 7)
+        selected_opp = st.sidebar.selectbox("Opponent Team", options=teams, index=teams.index('BKN'))
+        is_home = st.sidebar.radio("Saha", ["Away", "Home"])
+        rest_days = st.sidebar.slider("Rest Day", 0, 10, 7)
         
         # Simülasyon Verisini Hazırla (Son maçın form durumunu alıyoruz)
         last_game_idx = raw_df.index[-1]
@@ -139,19 +139,19 @@ def main():
         
         with col1:
             st.subheader(f"🆚 {selected_opp}")
-            st.caption(f"{is_home}, {rest_days} gün dinlenme")
+            st.caption(f"{is_home}, {rest_days} day rest.")
             
         with col2:
             st.metric(
-                label="Beklenen Sayı (Tahmin)", 
+                label="Expected score (Prediction)", 
                 value=f"{prediction:.1f}",
-                delta=f"Son Maçtan: {prediction - raw_df.iloc[-1]['PTS']:.1f}"
+                delta=f"Last match: {prediction - raw_df.iloc[-1]['PTS']:.1f}"
             )
             
         with col3:
             low = prediction - std_dev
             high = prediction + std_dev
-            st.info(f"🎯 Güven Aralığı: **{low:.1f} - {high:.1f}**")
+            st.info(f"🎯 Confidence Interval: **{low:.1f} - {high:.1f}**")
 
         st.divider()
 
@@ -159,7 +159,7 @@ def main():
         col_chart1, col_chart2 = st.columns([2, 1])
 
         with col_chart1:
-            st.subheader("📈 Gerçekleşen vs Tahmin (Son 20 Maç)")
+            st.subheader("📈 Expected vs Predicted (Last 20 match)")
             # Son 20 maçın tahminlerini oluştur
             recent_data = df_ml.tail(20).copy()
             recent_data['Tahmin'] = model.predict(recent_data[features])
@@ -172,7 +172,7 @@ def main():
             st.plotly_chart(fig, use_container_width=True)
 
         with col_chart2:
-            st.subheader("🔑 Etkileyen Faktörler")
+            st.subheader("🔑 Important Features")
             importance = pd.DataFrame({
                 'Feature': features,
                 'Importance': model.feature_importances_
@@ -183,7 +183,7 @@ def main():
             st.plotly_chart(fig_imp, use_container_width=True)
 
         # 3. Kısım: Son Maçlar Tablosu
-        with st.expander("📋 Son Maç İstatistiklerini Görüntüle"):
+        with st.expander("📋 Last Matches Stats"):
             st.dataframe(raw_df[['GAME_DATE', 'OPPONENT', 'PTS', 'REB', 'AST', 'MIN']].tail(10).sort_values('GAME_DATE', ascending=False))
 
 if __name__ == "__main__":
