@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[46]:
-
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -26,7 +20,7 @@ def load_and_prep_data():
         df = pd.read_csv('alperen_sengun_full_career_ml_data.csv')
     except FileNotFoundError:
         st.error("CSV dosyası bulunamadı! 'alperen_sengun_full_career_ml_data.csv' dosyasının aynı klasörde olduğundan emin ol.")
-        return None, None
+        return None, None, None
 
     df['GAME_DATE'] = pd.to_datetime(df['GAME_DATE'])
     df = df.sort_values('GAME_DATE').reset_index(drop=True)
@@ -86,8 +80,8 @@ def train_model(df_ml):
 
 # --- 3. ANA UYGULAMA ---
 def main():
-    st.title("🏀 Alperen Sengun: AI Performance Predicts")
-    st.markdown("This dashboard, predicts Alperen's next game stats with using machine learning techniques..")
+    st.title("🏀 Alperen Sengun: AI Performance Predictor")
+    st.markdown("This dashboard predicts Alperen's next game stats using machine learning techniques based on historical data.")
 
     raw_df, df_ml, defense_map = load_and_prep_data()
     
@@ -96,18 +90,24 @@ def main():
 
         # Yan Menü (Sidebar) - Simülasyon
         st.sidebar.header("🛠️ Prediction Simulator")
-        st.sidebar.markdown("Change the conditions, see the predictions.")
+        st.sidebar.markdown("Change the conditions to see how the prediction changes.")
         
         # Seçimler
         teams = sorted(defense_map.keys())
-        selected_opp = st.sidebar.selectbox("Opponent Team", options=teams, index=teams.index('BKN'))
-        is_home = st.sidebar.radio("Saha", ["Away", "Home"])
-        rest_days = st.sidebar.slider("Rest Day", 0, 10, 7)
+        # Default index olarak BKN yoksa listenin başını al
+        default_index = teams.index('BKN') if 'BKN' in teams else 0
+        selected_opp = st.sidebar.selectbox("Opponent Team", options=teams, index=default_index)
+        
+        # DÜZELTİLDİ: Türkçe/İngilizce uyumsuzluğu giderildi
+        is_home_label = st.sidebar.radio("Venue", ["Away", "Home"])
+        is_home_val = 1 if is_home_label == "Home" else 0
+        
+        rest_days = st.sidebar.slider("Rest Days", 0, 10, 7)
         
         # Simülasyon Verisini Hazırla (Son maçın form durumunu alıyoruz)
-        last_game_idx = raw_df.index[-1]
+        # last_game_idx = raw_df.index[-1] # Kullanılmıyor, sildim
         
-        # Son maçın istatistiklerine göre rolling average hesapla (shift etmeden)
+        # Son maçın istatistiklerine göre rolling average hesapla
         l3_pts = raw_df['PTS'].tail(3).mean()
         l5_pts = raw_df['PTS'].tail(5).mean()
         l10_pts = raw_df['PTS'].tail(10).mean()
@@ -115,11 +115,14 @@ def main():
         l5_min = raw_df['MIN'].tail(5).mean()
         l5_fga = raw_df['FGA'].tail(5).mean()
         l5_tov = raw_df['TOV'].tail(5).mean()
-        szn_pts = raw_df[raw_df['SEASON_ID'] == raw_df.iloc[-1]['SEASON_ID']]['PTS'].mean()
-        szn_fg = raw_df[raw_df['SEASON_ID'] == raw_df.iloc[-1]['SEASON_ID']]['FG_PCT'].mean()
+        
+        # Sezon verilerini son maçın sezon ID'sine göre çek
+        last_season_id = raw_df.iloc[-1]['SEASON_ID']
+        szn_pts = raw_df[raw_df['SEASON_ID'] == last_season_id]['PTS'].mean()
+        szn_fg = raw_df[raw_df['SEASON_ID'] == last_season_id]['FG_PCT'].mean()
 
         input_data = pd.DataFrame({
-            'IS_HOME': [1 if is_home == "Ev Sahibi" else 0],
+            'IS_HOME': [is_home_val],
             'IS_B2B': [1 if rest_days == 0 else 0],
             'OPP_DEF_STRENGTH': [defense_map[selected_opp]],
             'REST_DAYS': [rest_days],
@@ -139,13 +142,13 @@ def main():
         
         with col1:
             st.subheader(f"🆚 {selected_opp}")
-            st.caption(f"{is_home}, {rest_days} day rest.")
+            st.caption(f"{is_home_label}, {rest_days} days rest.")
             
         with col2:
             st.metric(
-                label="Expected score (Prediction)", 
+                label="Predicted Score", 
                 value=f"{prediction:.1f}",
-                delta=f"Last match: {prediction - raw_df.iloc[-1]['PTS']:.1f}"
+                delta=f"Diff from last game: {prediction - raw_df.iloc[-1]['PTS']:.1f}"
             )
             
         with col3:
@@ -159,20 +162,20 @@ def main():
         col_chart1, col_chart2 = st.columns([2, 1])
 
         with col_chart1:
-            st.subheader("📈 Expected vs Predicted (Last 20 match)")
+            st.subheader("📈 Prediction vs Actual (Last 20 Games)")
             # Son 20 maçın tahminlerini oluştur
             recent_data = df_ml.tail(20).copy()
             recent_data['Tahmin'] = model.predict(recent_data[features])
             
             fig = go.Figure()
-            fig.add_trace(go.Scatter(x=recent_data['GAME_DATE'], y=recent_data['PTS'], mode='lines+markers', name='True', line=dict(color='#FF4B4B')))
-            fig.add_trace(go.Scatter(x=recent_data['GAME_DATE'], y=recent_data['Tahmin'], mode='lines+markers', name='Prediction', line=dict(color='#1F77B4', dash='dot')))
+            fig.add_trace(go.Scatter(x=recent_data['GAME_DATE'], y=recent_data['PTS'], mode='lines+markers', name='Actual', line=dict(color='#FF4B4B')))
+            fig.add_trace(go.Scatter(x=recent_data['GAME_DATE'], y=recent_data['Tahmin'], mode='lines+markers', name='Predicted', line=dict(color='#1F77B4', dash='dot')))
             
             fig.update_layout(height=350, margin=dict(l=20, r=20, t=30, b=20))
             st.plotly_chart(fig, use_container_width=True)
 
         with col_chart2:
-            st.subheader("🔑 Important Features")
+            st.subheader("🔑 Key Features")
             importance = pd.DataFrame({
                 'Feature': features,
                 'Importance': model.feature_importances_
@@ -183,15 +186,8 @@ def main():
             st.plotly_chart(fig_imp, use_container_width=True)
 
         # 3. Kısım: Son Maçlar Tablosu
-        with st.expander("📋 Last Matches Stats"):
+        with st.expander("📋 Last 10 Games Stats"):
             st.dataframe(raw_df[['GAME_DATE', 'OPPONENT', 'PTS', 'REB', 'AST', 'MIN']].tail(10).sort_values('GAME_DATE', ascending=False))
 
 if __name__ == "__main__":
     main()
-
-
-# In[ ]:
-
-
-
-
